@@ -939,9 +939,22 @@ function findSFSample(program, note, bank = 0) {
     for (let gi = genStart; gi < genEnd; gi++) {
       const g = igens[gi];
       switch (g.oper) {
-        case 43: loKey = (g.amount >> 8) & 0xFF; hiKey = g.amount & 0xFF; break; // keyRange as packed bytes
+        /*case 43: loKey = (g.amount >> 8) & 0xFF; hiKey = g.amount & 0xFF; break; // keyRange as packed bytes
         case 44: loVel = (g.amount >> 8) & 0xFF; hiVel = g.amount & 0xFF; break;
+        */
+        case 43:
+  loKey = g.amount & 0xFF;
+  hiKey = (g.amount >> 8) & 0xFF;
+  break;
+
+case 44:
+  loVel = g.amount & 0xFF;
+  hiVel = (g.amount >> 8) & 0xFF;
+  break;
         case 53: sampleIdx = g.amount; break;
+        case 56:
+  rootKey = g.amount;
+  break;
         case 58: overridePitch = g.amount; break;
         case 54: sampleModes = g.amount; break;
       }
@@ -1009,6 +1022,12 @@ async function playSFNote(note, velocity, program = 0, channel = 0) {
   source.buffer = audioBuf;
 
   // Pitch shift
+  /*const rootPitch =
+  rootKey >= 0
+    ? rootKey
+    : overridePitch >= 0
+      ? overridePitch
+      : shdr.originalPitch;*/
   const rootPitch = overridePitch >= 0 ? overridePitch : shdr.originalPitch;
   const semitones = note - rootPitch;
   source.playbackRate.value = Math.pow(2, semitones / 12);
@@ -1585,7 +1604,19 @@ function onNoteMouseDown(e) {
     const noteDuration = TICKS_PER_BEAT / quantize;
     drawingNote = { tick, note, duration: noteDuration };
     playSFNote(note, 80, tracks[activeTrackIdx]?.program || 0, tracks[activeTrackIdx]?.channel || 0);
-    dragState = { startTick: tick, note };
+    //dragState = { startTick: tick, note };
+    dragState = {
+  startTick: snapTick(xToTick(x)),
+  startNote: note,
+  origNotes: [...selectedNotes].map(id => {
+    const n = tracks[activeTrackIdx]?.notes.find(n => n.id === id);
+    return n ? {
+      id: n.id,
+      tick: n.tick,
+      note: n.note
+    } : null;
+  }).filter(Boolean)
+};
     redrawNotes();
   }
 }
@@ -1625,7 +1656,31 @@ function onNoteMouseMove(e) {
     redrawNotes();
     return;
   }
+  if (isDraggingNote && dragState) {
 
+  const currentTick = snapTick(xToTick(x));
+  const dtick = currentTick - dragState.startTick;
+
+  const currentNote = yToNote(y);
+  const dnote = currentNote - dragState.startNote;
+
+  const track = tracks[activeTrackIdx];
+
+  if (track) {
+    dragState.origNotes.forEach(orig => {
+      const n = track.notes.find(n => n.id === orig.id);
+
+      if (n) {
+        n.tick = Math.max(0, orig.tick + dtick);
+        n.note = Math.max(0, Math.min(127, orig.note + dnote));
+      }
+    });
+  }
+
+  redrawNotes();
+  return;
+}
+/*
   if (isDraggingNote && dragState) {
     const dx = x - dragState.startX;
     const dy = y - dragState.startY;
@@ -1644,7 +1699,7 @@ function onNoteMouseMove(e) {
     redrawNotes();
     return;
   }
-
+*/
   if (drawingNote && dragState) {
     const tick = xToTick(x);
     const endTick = snapTick(tick);
