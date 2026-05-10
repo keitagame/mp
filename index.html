@@ -1,0 +1,2282 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MIDI Editor Pro</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Space+Grotesk:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a24;
+    --surface3: #222230;
+    --border: #2a2a3a;
+    --border2: #3a3a4e;
+    --accent: #00d4ff;
+    --accent2: #ff6b35;
+    --accent3: #7c3aed;
+    --green: #00ff88;
+    --red: #ff3366;
+    --yellow: #ffcc00;
+    --text: #e8e8f0;
+    --text2: #8888aa;
+    --text3: #4444660;
+    --note-color: #00d4ff;
+    --note-selected: #ff6b35;
+    --piano-white: #e8e8f0;
+    --piano-black: #1a1a24;
+    --piano-white-hover: #00d4ff;
+    --piano-black-hover: #0088aa;
+    --grid-line: #1e1e2a;
+    --grid-beat: #252535;
+    --grid-bar: #2e2e42;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* HEADER */
+  #header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 12px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    z-index: 100;
+  }
+
+  #logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    margin-right: 8px;
+    white-space: nowrap;
+  }
+
+  .sep { width: 1px; height: 28px; background: var(--border); flex-shrink: 0; }
+
+  .btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .btn:hover { background: var(--surface3); border-color: var(--border2); color: var(--text); }
+  .btn.active { background: var(--accent); border-color: var(--accent); color: #000; }
+  .btn.danger { border-color: var(--red); color: var(--red); }
+  .btn.danger:hover { background: var(--red); color: #fff; }
+  .btn.success { border-color: var(--green); color: var(--green); }
+  .btn.success:hover { background: var(--green); color: #000; }
+
+  .transport-btn {
+    width: 32px; height: 32px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .transport-btn:hover { background: var(--surface3); color: var(--text); }
+  .transport-btn.play-btn { border-color: var(--green); color: var(--green); }
+  .transport-btn.play-btn:hover, .transport-btn.play-btn.active { background: var(--green); color: #000; }
+  .transport-btn.stop-btn:hover { background: var(--red); color: #fff; border-color: var(--red); }
+  .transport-btn.rec-btn { border-color: var(--red); color: var(--red); }
+  .transport-btn.rec-btn.active { background: var(--red); color: #fff; animation: pulse 1s infinite; }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+  .time-display {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    background: var(--bg);
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    min-width: 90px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .tempo-box {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: var(--text2);
+    flex-shrink: 0;
+  }
+  .tempo-box input {
+    width: 52px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    padding: 4px 6px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    text-align: center;
+  }
+  .tempo-box input:focus { outline: none; border-color: var(--accent); }
+
+  .zoom-controls { display: flex; gap: 3px; align-items: center; flex-shrink: 0; }
+  .zoom-controls span { font-size: 10px; color: var(--text2); font-family: 'JetBrains Mono', monospace; min-width: 36px; text-align: center; }
+
+  select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    cursor: pointer;
+    max-width: 130px;
+  }
+  select:focus { outline: none; border-color: var(--accent); }
+
+  #header-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+
+  /* MAIN AREA */
+  #main {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* TRACK LIST */
+  #track-area {
+    display: flex;
+    flex-shrink: 0;
+    border-bottom: 2px solid var(--border2);
+    background: var(--surface);
+    height: 110px;
+    overflow: hidden;
+  }
+
+  #track-sidebar {
+    width: 180px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+  }
+
+  #track-sidebar-header {
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 8px;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    color: var(--text2);
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+
+  #tracks-list {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .track-item {
+    height: 40px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    gap: 6px;
+    transition: background 0.1s;
+  }
+  .track-item:hover { background: var(--surface2); }
+  .track-item.active { background: var(--surface3); border-left: 2px solid var(--accent); }
+
+  .track-color { width: 3px; height: 24px; border-radius: 2px; flex-shrink: 0; }
+  .track-name { font-size: 11px; font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .track-mute, .track-solo {
+    width: 18px; height: 18px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    font-size: 8px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--text2);
+    flex-shrink: 0;
+    transition: all 0.1s;
+  }
+  .track-mute:hover { border-color: var(--yellow); color: var(--yellow); }
+  .track-mute.active { background: var(--yellow); color: #000; border-color: var(--yellow); }
+  .track-solo:hover { border-color: var(--accent); color: var(--accent); }
+  .track-solo.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+  /* PIANO ROLL AREA */
+  #piano-roll-container {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+  }
+
+  #piano-sidebar {
+    width: 60px;
+    flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+    z-index: 10;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.5);
+  }
+
+  #piano-canvas {
+    display: block;
+  }
+
+  #roll-area {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #ruler-canvas {
+    display: block;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  #grid-wrapper {
+    flex: 1;
+    overflow: scroll;
+    position: relative;
+    cursor: crosshair;
+  }
+  #grid-wrapper::-webkit-scrollbar { width: 8px; height: 8px; }
+  #grid-wrapper::-webkit-scrollbar-track { background: var(--surface); }
+  #grid-wrapper::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+  #grid-wrapper::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+  #grid-canvas { display: block; position: absolute; top: 0; left: 0; }
+  #note-canvas { display: block; position: absolute; top: 0; left: 0; cursor: crosshair; }
+
+  /* Sync scroll */
+  #piano-scroll-wrapper {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* VELOCITY EDITOR */
+  #velocity-area {
+    height: 80px;
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+    display: flex;
+    overflow: hidden;
+    background: var(--surface);
+  }
+
+  #velocity-label {
+    width: 60px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: var(--text2);
+    font-weight: 600;
+    letter-spacing: 1px;
+    writing-mode: vertical-rl;
+  }
+
+  #velocity-canvas { display: block; cursor: pointer; }
+  #vel-wrapper { flex: 1; overflow: hidden; position: relative; }
+
+  /* STATUS BAR */
+  #status {
+    height: 24px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 16px;
+    font-size: 10px;
+    color: var(--text2);
+    font-family: 'JetBrains Mono', monospace;
+    flex-shrink: 0;
+  }
+  #status span { display: flex; align-items: center; gap: 4px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text2); }
+  .status-dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-dot.red { background: var(--red); box-shadow: 0 0 6px var(--red); animation: pulse 1s infinite; }
+  .status-dot.yellow { background: var(--yellow); }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+  }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 24px;
+    min-width: 320px;
+    max-width: 480px;
+  }
+  .modal h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; color: var(--accent); }
+  .modal p { font-size: 12px; color: var(--text2); margin-bottom: 12px; line-height: 1.6; }
+  .modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+  #sf-status {
+    padding: 8px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--text2);
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 12px;
+  }
+
+  input[type="file"] { display: none; }
+
+  .progress-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s;
+  }
+
+  /* TOOL INDICATOR */
+  #tool-indicator {
+    font-size: 10px;
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    flex-shrink: 0;
+  }
+  #tool-indicator .tool-icon { font-size: 12px; }
+
+  .vol-slider {
+    -webkit-appearance: none;
+    width: 70px;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  .vol-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div id="logo">MIDI·EDI</div>
+  <div class="sep"></div>
+
+  <!-- Transport -->
+  <button class="transport-btn stop-btn" id="btn-stop" title="停止 (Space)">■</button>
+  <button class="transport-btn play-btn" id="btn-play" title="再生 (Space)">▶</button>
+  <button class="transport-btn rec-btn" id="btn-rec" title="録音">●</button>
+  <div class="time-display" id="time-display">1:1:000</div>
+
+  <div class="sep"></div>
+
+  <!-- Tempo -->
+  <div class="tempo-box">
+    <span>BPM</span>
+    <input type="number" id="tempo-input" value="120" min="20" max="300">
+  </div>
+
+  <!-- Time Sig -->
+  <select id="timesig-select" title="拍子">
+    <option value="4/4">4/4</option>
+    <option value="3/4">3/4</option>
+    <option value="6/8">6/8</option>
+    <option value="2/4">2/4</option>
+  </select>
+
+  <div class="sep"></div>
+
+  <!-- Tools -->
+  <button class="btn active" id="tool-draw" title="描画 (D)">✏️ 描画</button>
+  <button class="btn" id="tool-select" title="選択 (S)">⬚ 選択</button>
+  <button class="btn" id="tool-erase" title="消去 (E)">✕ 消去</button>
+
+  <div class="sep"></div>
+
+  <!-- Quantize -->
+  <select id="quantize-select" title="クォンタイズ">
+    <option value="1">1/1</option>
+    <option value="2">1/2</option>
+    <option value="4" selected>1/4</option>
+    <option value="8">1/8</option>
+    <option value="16">1/16</option>
+    <option value="32">1/32</option>
+  </select>
+
+  <!-- Zoom -->
+  <div class="zoom-controls">
+    <button class="btn" id="zoom-out">－</button>
+    <span id="zoom-label">100%</span>
+    <button class="btn" id="zoom-in">＋</button>
+  </div>
+
+  <div class="sep"></div>
+
+  <!-- Master Volume -->
+  <span style="font-size:10px;color:var(--text2);">VOL</span>
+  <input type="range" class="vol-slider" id="master-vol" min="0" max="100" value="80">
+
+  <div id="header-right">
+    <!-- Channel -->
+    <select id="instrument-select" title="音色">
+      <option value="0">Acoustic Grand Piano</option>
+      <option value="1">Bright Acoustic Piano</option>
+      <option value="4">Electric Piano 1</option>
+      <option value="25">Acoustic Guitar (nylon)</option>
+      <option value="33">Acoustic Bass</option>
+      <option value="40">Violin</option>
+      <option value="56">Trumpet</option>
+      <option value="60">French Horn</option>
+      <option value="73">Flute</option>
+      <option value="0" data-drum="true">🥁 Drums (Ch10)</option>
+    </select>
+
+    <div class="sep"></div>
+
+    <button class="btn" id="btn-new">🗋 新規</button>
+    <button class="btn success" id="btn-load-sf">🔊 SF2読込</button>
+    <button class="btn" id="btn-import">📂 MIDIインポート</button>
+    <button class="btn accent" id="btn-export">💾 MIDIエクスポート</button>
+    <input type="file" id="sf-file-input" accept=".sf2">
+    <input type="file" id="midi-file-input" accept=".mid,.midi">
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <!-- TRACK AREA -->
+  <div id="track-area">
+    <div id="track-sidebar">
+      <div id="track-sidebar-header">
+        <span>TRACKS</span>
+        <button class="btn" id="btn-add-track" style="padding:2px 6px;font-size:9px;">+ ADD</button>
+      </div>
+      <div id="tracks-list"></div>
+    </div>
+    <div style="flex:1;overflow:hidden;position:relative;">
+      <canvas id="arrangement-canvas" style="display:block;"></canvas>
+    </div>
+  </div>
+
+  <!-- PIANO ROLL -->
+  <div id="piano-roll-container">
+    <div id="piano-sidebar">
+      <canvas id="piano-canvas"></canvas>
+    </div>
+    <div id="roll-area">
+      <canvas id="ruler-canvas"></canvas>
+      <div id="grid-wrapper">
+        <canvas id="grid-canvas"></canvas>
+        <canvas id="note-canvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- VELOCITY -->
+  <div id="velocity-area">
+    <div id="velocity-label">VELOCITY</div>
+    <div id="vel-wrapper">
+      <canvas id="velocity-canvas"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- STATUS BAR -->
+<div id="status">
+  <span><div class="status-dot" id="sf-dot"></div><span id="sf-name">SF2未読込</span></span>
+  <span>ノート数: <strong id="note-count">0</strong></span>
+  <span>選択: <strong id="sel-count">0</strong></span>
+  <span>カーソル: <strong id="cursor-pos">-</strong></span>
+  <span style="margin-left:auto;">Drag=描画 | Shift+Drag=選択 | Right=削除 | Space=再生/停止</span>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/MIDI.js/0.3.0/MIDI.js"></script>
+<script>
+// =====================================================================
+// MIDI EDITOR - COMPLETE IMPLEMENTATION
+// =====================================================================
+
+const NOTE_HEIGHT = 14;
+const TICKS_PER_BEAT = 480;
+const MIN_NOTE = 0;
+const MAX_NOTE = 127;
+const NUM_NOTES = 128;
+const RULER_HEIGHT = 28;
+const VELOCITY_HEIGHT = 80;
+const PIANO_WIDTH = 60;
+
+// State
+let bpm = 120;
+let timeSig = { num: 4, den: 4 };
+let zoom = 1.0;
+let scrollX = 0;
+let scrollY = 0;
+let currentTool = 'draw';
+let quantize = 4; // subdivisions per beat
+let masterVolume = 0.8;
+
+// Audio
+let audioCtx = null;
+let sfLoaded = false;
+let sfName = 'なし';
+let sfBuffer = null;
+let soundfont = null; // parsed soundfont data
+let activeNotes = {}; // noteNum -> {source, gainNode}
+
+// Playback
+let isPlaying = false;
+let playStartTick = 0;
+let playStartTime = 0;
+let playbackNoteTimeouts = [];
+let playheadTick = 0;
+let animFrame = null;
+
+// Tracks
+let tracks = [];
+let activeTrackIdx = 0;
+
+// Selection
+let selectedNotes = new Set();
+let selectionRect = null;
+
+// Drag state
+let dragState = null;
+let isDraggingNote = false;
+let drawingNote = null;
+
+// =====================================================================
+// TRACK MANAGEMENT
+// =====================================================================
+
+function createTrack(name, color, channel = 0, program = 0) {
+  return {
+    id: Date.now() + Math.random(),
+    name,
+    color,
+    channel,
+    program,
+    muted: false,
+    soloed: false,
+    notes: [],
+    volume: 100,
+  };
+}
+
+const TRACK_COLORS = ['#00d4ff','#ff6b35','#7c3aed','#00ff88','#ffcc00','#ff3366','#06b6d4','#f59e0b'];
+
+function addTrack(name, channel, program) {
+  const color = TRACK_COLORS[tracks.length % TRACK_COLORS.length];
+  const track = createTrack(name || `Track ${tracks.length + 1}`, color, channel ?? tracks.length % 16, program ?? 0);
+  tracks.push(track);
+  activeTrackIdx = tracks.length - 1;
+  renderTrackList();
+  redrawAll();
+  return track;
+}
+
+function initDefaultTracks() {
+  tracks = [];
+  addTrack('Piano', 0, 0);
+}
+
+function renderTrackList() {
+  const list = document.getElementById('tracks-list');
+  list.innerHTML = '';
+  tracks.forEach((t, i) => {
+    const el = document.createElement('div');
+    el.className = 'track-item' + (i === activeTrackIdx ? ' active' : '');
+    el.innerHTML = `
+      <div class="track-color" style="background:${t.color}"></div>
+      <div class="track-name" title="${t.name}">${t.name}</div>
+      <div class="track-mute ${t.muted ? 'active' : ''}" data-idx="${i}" title="ミュート">M</div>
+      <div class="track-solo ${t.soloed ? 'active' : ''}" data-idx="${i}" title="ソロ">S</div>
+    `;
+    el.addEventListener('click', (e) => {
+      if (e.target.classList.contains('track-mute')) {
+        tracks[i].muted = !tracks[i].muted;
+        renderTrackList();
+      } else if (e.target.classList.contains('track-solo')) {
+        tracks[i].soloed = !tracks[i].soloed;
+        renderTrackList();
+      } else {
+        activeTrackIdx = i;
+        renderTrackList();
+        redrawAll();
+      }
+    });
+    list.appendChild(el);
+  });
+  updateStatusBar();
+}
+
+// =====================================================================
+// AUDIO ENGINE
+// =====================================================================
+
+function ensureAudioCtx() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+// Simple SF2 parser (essential subset)
+class SF2Parser {
+  constructor(buffer) {
+    this.buffer = buffer;
+    this.view = new DataView(buffer);
+    this.pos = 0;
+  }
+
+  readUint32() { const v = this.view.getUint32(this.pos, true); this.pos += 4; return v; }
+  readUint16() { const v = this.view.getUint16(this.pos, true); this.pos += 2; return v; }
+  readInt16()  { const v = this.view.getInt16(this.pos, true);  this.pos += 2; return v; }
+  readByte()   { return this.view.getUint8(this.pos++); }
+  readString(n) {
+    let s = '';
+    for (let i = 0; i < n; i++) {
+      const c = this.view.getUint8(this.pos++);
+      if (c !== 0) s += String.fromCharCode(c);
+    }
+    return s.trim();
+  }
+  skip(n) { this.pos += n; }
+
+  readFourCC() { return this.readString(4); }
+
+  parse() {
+    const result = { presets: [], instruments: [], samples: [], sampleData: null };
+    const riff = this.readFourCC();
+    if (riff !== 'RIFF') throw new Error('Not a RIFF file');
+    this.readUint32(); // size
+    const sfbk = this.readFourCC();
+    if (sfbk !== 'sfbk') throw new Error('Not an SF2 file');
+
+    let chunks = {};
+    while (this.pos < this.buffer.byteLength - 8) {
+      const id = this.readFourCC();
+      const size = this.readUint32();
+      const start = this.pos;
+      if (id === 'LIST') {
+        const listType = this.readFourCC();
+        chunks[listType] = { start: this.pos, end: start + size };
+        this.pos = start + size;
+      } else {
+        this.pos = start + size;
+      }
+    }
+
+    // Parse sdta (sample data)
+    if (chunks['sdta']) {
+      this.pos = chunks['sdta'].start;
+      const end = chunks['sdta'].end;
+      while (this.pos < end - 8) {
+        const cid = this.readFourCC();
+        const csize = this.readUint32();
+        if (cid === 'smpl') {
+          result.sampleData = this.buffer.slice(this.pos, this.pos + csize);
+        }
+        this.pos += csize;
+      }
+    }
+
+    // Parse pdta
+    if (chunks['pdta']) {
+      this.pos = chunks['pdta'].start;
+      const end = chunks['pdta'].end;
+      let phdr=[], pbag=[], pmod=[], pgen=[], inst=[], ibag=[], imod=[], igen=[], shdr=[];
+      while (this.pos < end - 8) {
+        const cid = this.readFourCC();
+        const csize = this.readUint32();
+        const cstart = this.pos;
+        if (cid === 'phdr') phdr = this.parsePhdr(csize);
+        else if (cid === 'pbag') pbag = this.parseBag(csize);
+        else if (cid === 'pgen') pgen = this.parseGen(csize);
+        else if (cid === 'inst') inst = this.parseInst(csize);
+        else if (cid === 'ibag') ibag = this.parseBag(csize);
+        else if (cid === 'igen') igen = this.parseGen(csize);
+        else if (cid === 'shdr') shdr = this.parseShdr(csize);
+        this.pos = cstart + csize;
+      }
+      result.presets = phdr;
+      result.samples = shdr;
+      result._pbag = pbag; result._pgen = pgen;
+      result._inst = inst; result._ibag = ibag; result._igen = igen;
+    }
+
+    return result;
+  }
+
+  parsePhdr(size) {
+    const count = size / 38;
+    const presets = [];
+    for (let i = 0; i < count; i++) {
+      presets.push({
+        name: this.readString(20),
+        preset: this.readUint16(),
+        bank: this.readUint16(),
+        bagIdx: this.readUint16(),
+      });
+      this.skip(12);
+    }
+    return presets;
+  }
+
+  parseBag(size) {
+    const count = size / 4;
+    const bags = [];
+    for (let i = 0; i < count; i++) {
+      bags.push({ genIdx: this.readUint16(), modIdx: this.readUint16() });
+    }
+    return bags;
+  }
+
+  parseGen(size) {
+    const count = size / 4;
+    const gens = [];
+    for (let i = 0; i < count; i++) {
+      gens.push({ oper: this.readUint16(), amount: this.readInt16() });
+    }
+    return gens;
+  }
+
+  parseInst(size) {
+    const count = size / 22;
+    const insts = [];
+    for (let i = 0; i < count; i++) {
+      insts.push({ name: this.readString(20), bagIdx: this.readUint16() });
+    }
+    return insts;
+  }
+
+  parseShdr(size) {
+    const count = size / 46;
+    const shdrs = [];
+    for (let i = 0; i < count; i++) {
+      shdrs.push({
+        name: this.readString(20),
+        start: this.readUint32(),
+        end: this.readUint32(),
+        loopStart: this.readUint32(),
+        loopEnd: this.readUint32(),
+        sampleRate: this.readUint32(),
+        originalPitch: this.readByte(),
+        pitchCorrection: this.view.getInt8(this.pos++),
+        sampleLink: this.readUint16(),
+        sampleType: this.readUint16(),
+      });
+    }
+    return shdrs;
+  }
+}
+
+// Soundfont sample cache
+let sfDecodedSamples = {}; // sampleIdx -> AudioBuffer
+
+async function loadSF2(arrayBuffer) {
+  ensureAudioCtx();
+  try {
+    const parser = new SF2Parser(arrayBuffer);
+    soundfont = parser.parse();
+    sfBuffer = arrayBuffer;
+    sfDecodedSamples = {};
+
+    // Pre-decode sample data
+    if (soundfont.sampleData) {
+      const int16 = new Int16Array(soundfont.sampleData);
+      soundfont._sampleInt16 = int16;
+    }
+
+    sfLoaded = true;
+    updateSFStatus('loaded');
+    console.log('SF2 loaded:', soundfont.presets.length, 'presets,', soundfont.samples.length, 'samples');
+    return true;
+  } catch (e) {
+    console.error('SF2 parse error:', e);
+    sfLoaded = false;
+    updateSFStatus('error');
+    return false;
+  }
+}
+
+function updateSFStatus(state) {
+  const dot = document.getElementById('sf-dot');
+  const name = document.getElementById('sf-name');
+  if (state === 'loaded') {
+    dot.className = 'status-dot green';
+    name.textContent = sfName;
+  } else if (state === 'loading') {
+    dot.className = 'status-dot yellow';
+    name.textContent = 'SF2読込中...';
+  } else {
+    dot.className = 'status-dot';
+    name.textContent = 'SF2未読込';
+  }
+}
+
+// Find best sample for a note
+function findSFSample(program, note, bank = 0) {
+  if (!soundfont || !soundfont.sampleData) return null;
+
+  // Find preset matching program/bank
+  const preset = soundfont.presets.find(p => p.preset === program && p.bank === bank)
+               || soundfont.presets.find(p => p.preset === program)
+               || soundfont.presets[0];
+  if (!preset) return null;
+
+  // Walk pbag -> pgen to find instrument reference
+  const pbags = soundfont._pbag;
+  const pgens = soundfont._pgen;
+  const insts = soundfont._inst;
+  const ibags = soundfont._ibag;
+  const igens = soundfont._igen;
+
+  const bagStart = preset.bagIdx;
+  const bagEnd = (soundfont.presets[soundfont.presets.indexOf(preset) + 1]?.bagIdx) ?? pbags.length;
+
+  let instIdx = -1;
+  for (let bi = bagStart; bi < bagEnd; bi++) {
+    const genStart = pbags[bi].genIdx;
+    const genEnd = (pbags[bi+1]?.genIdx) ?? pgens.length;
+    for (let gi = genStart; gi < genEnd; gi++) {
+      if (pgens[gi].oper === 41) { instIdx = pgens[gi].amount; break; }
+    }
+    if (instIdx >= 0) break;
+  }
+  if (instIdx < 0) instIdx = 0;
+
+  const inst = insts[instIdx];
+  if (!inst) return null;
+
+  const ibagStart = inst.bagIdx;
+  const ibagEnd = (insts[instIdx + 1]?.bagIdx) ?? ibags.length;
+
+  // Find best zone matching note
+  let bestSample = null;
+  let bestDist = Infinity;
+
+  for (let bi = ibagStart; bi < ibagEnd; bi++) {
+    const genStart = ibags[bi].genIdx;
+    const genEnd = (ibags[bi+1]?.genIdx) ?? igens.length;
+
+    let loKey = 0, hiKey = 127, loVel = 0, hiVel = 127, sampleIdx = -1;
+    let overridePitch = -1, rootKey = -1;
+    let sampleModes = 0;
+
+    for (let gi = genStart; gi < genEnd; gi++) {
+      const g = igens[gi];
+      switch (g.oper) {
+        case 43: loKey = (g.amount >> 8) & 0xFF; hiKey = g.amount & 0xFF; break; // keyRange as packed bytes
+        case 44: loVel = (g.amount >> 8) & 0xFF; hiVel = g.amount & 0xFF; break;
+        case 53: sampleIdx = g.amount; break;
+        case 58: overridePitch = g.amount; break;
+        case 54: sampleModes = g.amount; break;
+      }
+    }
+
+    // Fix keyRange: SF2 stores lo in low byte, hi in high byte
+    if (sampleIdx >= 0) {
+      // Reparse as uint16
+    }
+
+    if (sampleIdx < 0 || sampleIdx >= soundfont.samples.length) continue;
+
+    if (note >= loKey && note <= hiKey) {
+      const dist = 0; // exact match
+      if (dist < bestDist) {
+        bestDist = dist;
+        const shdr = soundfont.samples[sampleIdx];
+        bestSample = { shdr, overridePitch, sampleModes };
+      }
+    }
+  }
+
+  // Fallback: find closest sample by originalPitch
+  if (!bestSample) {
+    let minDist = Infinity;
+    soundfont.samples.forEach((s, i) => {
+      if (s.sampleType === 0 || s.name === 'EOS') return;
+      const d = Math.abs(s.originalPitch - note);
+      if (d < minDist) { minDist = d; bestSample = { shdr: s, overridePitch: -1 }; }
+    });
+  }
+
+  return bestSample;
+}
+
+async function getSFAudioBuffer(shdr) {
+  const key = shdr.name + shdr.start;
+  if (sfDecodedSamples[key]) return sfDecodedSamples[key];
+
+  const int16 = soundfont._sampleInt16;
+  const length = shdr.end - shdr.start;
+  if (length <= 0) return null;
+
+  const buffer = audioCtx.createBuffer(1, length, shdr.sampleRate);
+  const channelData = buffer.getChannelData(0);
+  for (let i = 0; i < length; i++) {
+    channelData[i] = (int16[shdr.start + i] || 0) / 32768;
+  }
+  sfDecodedSamples[key] = buffer;
+  return buffer;
+}
+
+async function playSFNote(note, velocity, program = 0, channel = 0) {
+  if (!sfLoaded || !soundfont) return playFallbackNote(note, velocity);
+  ensureAudioCtx();
+
+  const sampleInfo = findSFSample(program, note, channel === 9 ? 128 : 0);
+  if (!sampleInfo) return playFallbackNote(note, velocity);
+
+  const { shdr, overridePitch } = sampleInfo;
+  const audioBuf = await getSFAudioBuffer(shdr);
+  if (!audioBuf) return;
+
+  const source = audioCtx.createBufferSource();
+  source.buffer = audioBuf;
+
+  // Pitch shift
+  const rootPitch = overridePitch >= 0 ? overridePitch : shdr.originalPitch;
+  const semitones = note - rootPitch;
+  source.playbackRate.value = Math.pow(2, semitones / 12);
+
+  // Looping
+  if (sampleInfo.sampleModes & 1) {
+    source.loop = true;
+    source.loopStart = (shdr.loopStart - shdr.start) / shdr.sampleRate;
+    source.loopEnd   = (shdr.loopEnd   - shdr.start) / shdr.sampleRate;
+  }
+
+  const gainNode = audioCtx.createGain();
+  gainNode.gain.value = (velocity / 127) * masterVolume;
+
+  source.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+  source.start();
+
+  const key = `${channel}_${note}`;
+  stopSFNote(note, channel);
+  activeNotes[key] = { source, gainNode };
+  return { source, gainNode };
+}
+
+function stopSFNote(note, channel = 0) {
+  const key = `${channel}_${note}`;
+  if (activeNotes[key]) {
+    try {
+      const { source, gainNode } = activeNotes[key];
+      gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+      source.stop(audioCtx.currentTime + 0.1);
+    } catch(e) {}
+    delete activeNotes[key];
+  }
+}
+
+// Fallback oscillator-based synth
+function playFallbackNote(note, velocity) {
+  ensureAudioCtx();
+  const freq = 440 * Math.pow(2, (note - 69) / 12);
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = freq;
+  gain.gain.value = (velocity / 127) * masterVolume * 0.3;
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  gain.gain.setTargetAtTime(0, audioCtx.currentTime + 0.01, 0.1);
+  osc.stop(audioCtx.currentTime + 0.5);
+}
+
+// =====================================================================
+// CANVAS SETUP
+// =====================================================================
+
+const pianoCanvas = document.getElementById('piano-canvas');
+const rulerCanvas = document.getElementById('ruler-canvas');
+const gridCanvas  = document.getElementById('grid-canvas');
+const noteCanvas  = document.getElementById('note-canvas');
+const velCanvas   = document.getElementById('velocity-canvas');
+const arrCanvas   = document.getElementById('arrangement-canvas');
+
+const pianoCtx = pianoCanvas.getContext('2d');
+const rulerCtx = rulerCanvas.getContext('2d');
+const gridCtx  = gridCanvas.getContext('2d');
+const noteCtx  = noteCanvas.getContext('2d');
+const velCtx   = velCanvas.getContext('2d');
+const arrCtx   = arrCanvas.getContext('2d');
+
+let rollWidth = 0, rollHeight = 0;
+let totalTicks = TICKS_PER_BEAT * timeSig.num * 8; // 8 bars default
+
+function pixelsPerTick() {
+  return (80 * zoom) / TICKS_PER_BEAT;
+}
+
+function tickToX(tick) { return tick * pixelsPerTick(); }
+function xToTick(x) { return x / pixelsPerTick(); }
+function noteToY(note) { return (MAX_NOTE - note) * NOTE_HEIGHT; }
+function yToNote(y) { return MAX_NOTE - Math.floor(y / NOTE_HEIGHT); }
+function snapTick(tick) {
+  const sub = TICKS_PER_BEAT / quantize;
+  return Math.round(tick / sub) * sub;
+}
+
+function resize() {
+  const container = document.getElementById('piano-roll-container');
+  const pianoSidebar = document.getElementById('piano-sidebar');
+  const rollArea = document.getElementById('roll-area');
+  const velWrapper = document.getElementById('vel-wrapper');
+  const trackArea = document.getElementById('track-area');
+  const trackSidebar = document.getElementById('track-sidebar');
+
+  // Piano canvas
+  pianoCanvas.width = PIANO_WIDTH;
+  pianoCanvas.height = NUM_NOTES * NOTE_HEIGHT;
+  pianoSidebar.style.height = container.clientHeight + 'px';
+
+  // Roll
+  const rw = rollArea.clientWidth;
+  const rh = container.clientHeight - RULER_HEIGHT;
+  rollWidth = rw;
+  rollHeight = rh;
+
+  rulerCanvas.width = rw;
+  rulerCanvas.height = RULER_HEIGHT;
+
+  // Grid/note canvas
+  const canvasW = Math.max(tickToX(totalTicks) + 200, rw);
+  const canvasH = NUM_NOTES * NOTE_HEIGHT;
+  gridCanvas.width = canvasW;
+  gridCanvas.height = canvasH;
+  noteCanvas.width = canvasW;
+  noteCanvas.height = canvasH;
+
+  // Velocity
+  velCanvas.width = velWrapper.clientWidth;
+  velCanvas.height = VELOCITY_HEIGHT;
+
+  // Arrangement
+  arrCanvas.width = trackArea.clientWidth - trackSidebar.clientWidth;
+  arrCanvas.height = trackArea.clientHeight - 28;
+
+  redrawAll();
+}
+
+// =====================================================================
+// DRAWING
+// =====================================================================
+
+function drawPiano() {
+  const W = PIANO_WIDTH, H = NOTE_HEIGHT;
+  pianoCtx.clearRect(0, 0, W, pianoCanvas.height);
+
+  // Black key pattern per octave: C D E F G A B
+  const blackKeys = new Set([1, 3, 6, 8, 10]); // semitone offsets
+
+  for (let note = MAX_NOTE; note >= MIN_NOTE; note--) {
+    const y = noteToY(note);
+    const semi = note % 12;
+    const isBlack = blackKeys.has(semi);
+
+    if (isBlack) {
+      pianoCtx.fillStyle = '#1a1a28';
+      pianoCtx.fillRect(0, y, W * 0.65, H);
+      pianoCtx.fillStyle = '#2a2a3a';
+      pianoCtx.fillRect(0, y + H - 1, W * 0.65, 1);
+    } else {
+      pianoCtx.fillStyle = '#d8d8e8';
+      pianoCtx.fillRect(0, y, W, H);
+      pianoCtx.fillStyle = '#aaaacc';
+      pianoCtx.fillRect(0, y + H - 1, W, 1);
+    }
+
+    // Note labels
+    if (semi === 0) {
+      const octave = Math.floor(note / 12) - 1;
+      pianoCtx.fillStyle = '#444466';
+      pianoCtx.font = `bold 7px 'JetBrains Mono'`;
+      pianoCtx.textAlign = 'right';
+      pianoCtx.fillText(`C${octave}`, W - 3, y + H - 3);
+    }
+  }
+
+  // Overlay scroll
+  const gw = document.getElementById('grid-wrapper');
+  const sy = gw.scrollTop;
+  pianoCtx.save();
+  pianoCtx.beginPath();
+  pianoCtx.rect(0, 0, W, pianoCanvas.height);
+  pianoCtx.clip();
+  pianoCtx.restore();
+}
+
+function drawGrid() {
+  const W = gridCanvas.width, H = gridCanvas.height;
+  gridCtx.clearRect(0, 0, W, H);
+
+  const ppt = pixelsPerTick();
+  const subDiv = TICKS_PER_BEAT / quantize;
+  const blackKeys = new Set([1, 3, 6, 8, 10]);
+
+  // Horizontal stripes per note
+  for (let note = MIN_NOTE; note <= MAX_NOTE; note++) {
+    const y = noteToY(note);
+    const semi = note % 12;
+    const isBlack = blackKeys.has(semi);
+    gridCtx.fillStyle = isBlack ? '#13131e' : '#16161f';
+    gridCtx.fillRect(0, y, W, NOTE_HEIGHT);
+  }
+
+  // Vertical grid lines
+  let tick = 0;
+  const beatsPerBar = timeSig.num;
+  while (tick <= totalTicks + TICKS_PER_BEAT * 4) {
+    const x = tickToX(tick);
+    const isBar = tick % (TICKS_PER_BEAT * beatsPerBar) === 0;
+    const isBeat = tick % TICKS_PER_BEAT === 0;
+
+    if (isBar) {
+      gridCtx.strokeStyle = '#2e2e42';
+      gridCtx.lineWidth = 1;
+    } else if (isBeat) {
+      gridCtx.strokeStyle = '#1e1e2c';
+      gridCtx.lineWidth = 1;
+    } else {
+      gridCtx.strokeStyle = '#18181f';
+      gridCtx.lineWidth = 1;
+    }
+    gridCtx.beginPath();
+    gridCtx.moveTo(x, 0);
+    gridCtx.lineTo(x, H);
+    gridCtx.stroke();
+
+    tick += subDiv;
+  }
+
+  // C lines
+  for (let note = 0; note <= MAX_NOTE; note += 12) {
+    const y = noteToY(note) + NOTE_HEIGHT;
+    gridCtx.strokeStyle = '#252535';
+    gridCtx.lineWidth = 1;
+    gridCtx.beginPath();
+    gridCtx.moveTo(0, y);
+    gridCtx.lineTo(W, y);
+    gridCtx.stroke();
+  }
+}
+
+function drawRuler() {
+  const W = rulerCanvas.width, H = RULER_HEIGHT;
+  rulerCtx.clearRect(0, 0, W, H);
+  rulerCtx.fillStyle = '#0e0e18';
+  rulerCtx.fillRect(0, 0, W, H);
+
+  const gw = document.getElementById('grid-wrapper');
+  const sx = gw.scrollLeft;
+  const ppt = pixelsPerTick();
+  const beatsPerBar = timeSig.num;
+
+  rulerCtx.font = `500 10px 'JetBrains Mono'`;
+  rulerCtx.textBaseline = 'middle';
+
+  let tick = 0;
+  let bar = 1;
+  while (tickToX(tick) - sx < W + 100) {
+    const x = tickToX(tick) - sx;
+    const isBar = tick % (TICKS_PER_BEAT * beatsPerBar) === 0;
+    const isBeat = tick % TICKS_PER_BEAT === 0;
+
+    if (isBar) {
+      rulerCtx.fillStyle = '#2a2a3e';
+      rulerCtx.fillRect(x, 0, 1, H);
+      rulerCtx.fillStyle = '#00d4ff';
+      rulerCtx.textAlign = 'left';
+      rulerCtx.fillText(String(bar), x + 3, H / 2);
+      bar++;
+    } else if (isBeat && ppt * TICKS_PER_BEAT > 20) {
+      rulerCtx.fillStyle = '#1e1e2a';
+      rulerCtx.fillRect(x, H * 0.6, 1, H * 0.4);
+    }
+
+    tick += TICKS_PER_BEAT / 4;
+    if (tick > totalTicks + TICKS_PER_BEAT * 16) break;
+  }
+
+  // Playhead on ruler
+  const phX = tickToX(playheadTick) - sx;
+  if (phX >= 0 && phX < W) {
+    rulerCtx.fillStyle = '#ff6b35';
+    rulerCtx.beginPath();
+    rulerCtx.moveTo(phX, 0);
+    rulerCtx.lineTo(phX + 6, 8);
+    rulerCtx.lineTo(phX - 6, 8);
+    rulerCtx.closePath();
+    rulerCtx.fill();
+    rulerCtx.fillRect(phX - 0.5, 8, 1, H - 8);
+  }
+}
+
+function drawNotes() {
+  const W = noteCanvas.width, H = noteCanvas.height;
+  noteCtx.clearRect(0, 0, W, H);
+
+  const track = tracks[activeTrackIdx];
+  if (!track) return;
+
+  // Draw notes for all tracks (inactive ones dimmed)
+  tracks.forEach((t, ti) => {
+    t.notes.forEach(n => {
+      const x = tickToX(n.tick);
+      const y = noteToY(n.note);
+      const w = Math.max(2, tickToX(n.duration) - 1);
+      const isActive = ti === activeTrackIdx;
+      const isSelected = selectedNotes.has(n.id);
+
+      if (isSelected) {
+        noteCtx.fillStyle = '#ff6b35';
+        noteCtx.strokeStyle = '#ff9966';
+      } else if (isActive) {
+        noteCtx.fillStyle = t.color || '#00d4ff';
+        noteCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+      } else {
+        noteCtx.fillStyle = t.color ? t.color + '55' : '#00d4ff55';
+        noteCtx.strokeStyle = 'transparent';
+      }
+
+      noteCtx.beginPath();
+      noteCtx.roundRect(x, y + 1, w, NOTE_HEIGHT - 2, 2);
+      noteCtx.fill();
+      if (isActive) {
+        noteCtx.lineWidth = 0.5;
+        noteCtx.stroke();
+      }
+
+      // Velocity indicator
+      const velH = Math.floor((n.velocity / 127) * (NOTE_HEIGHT - 3));
+      noteCtx.fillStyle = 'rgba(255,255,255,0.2)';
+      noteCtx.fillRect(x, y + NOTE_HEIGHT - 1 - velH, 2, velH);
+    });
+  });
+
+  // Drawing note preview
+  if (drawingNote) {
+    const { tick, note, duration } = drawingNote;
+    const x = tickToX(tick);
+    const y = noteToY(note);
+    const w = Math.max(2, tickToX(duration));
+    noteCtx.fillStyle = '#ffffff88';
+    noteCtx.beginPath();
+    noteCtx.roundRect(x, y + 1, w, NOTE_HEIGHT - 2, 2);
+    noteCtx.fill();
+  }
+
+  // Selection rect
+  if (selectionRect) {
+    const { x1, y1, x2, y2 } = selectionRect;
+    noteCtx.strokeStyle = '#ff6b35';
+    noteCtx.lineWidth = 1;
+    noteCtx.setLineDash([4, 3]);
+    noteCtx.strokeRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+    noteCtx.fillStyle = '#ff6b3522';
+    noteCtx.fillRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+    noteCtx.setLineDash([]);
+  }
+
+  // Playhead
+  const phX = tickToX(playheadTick);
+  noteCtx.strokeStyle = '#ff6b35aa';
+  noteCtx.lineWidth = 1;
+  noteCtx.beginPath();
+  noteCtx.moveTo(phX, 0);
+  noteCtx.lineTo(phX, H);
+  noteCtx.stroke();
+}
+
+function drawVelocity() {
+  const W = velCanvas.width, H = velCanvas.height;
+  const gw = document.getElementById('grid-wrapper');
+  const sx = gw.scrollLeft;
+  velCtx.clearRect(0, 0, W, H);
+  velCtx.fillStyle = '#0e0e18';
+  velCtx.fillRect(0, 0, W, H);
+
+  const track = tracks[activeTrackIdx];
+  if (!track) return;
+
+  track.notes.forEach(n => {
+    const x = tickToX(n.tick) - sx;
+    if (x < -5 || x > W + 5) return;
+    const barH = Math.floor((n.velocity / 127) * (H - 8));
+    const isSelected = selectedNotes.has(n.id);
+
+    velCtx.fillStyle = isSelected ? '#ff6b35' : '#00d4ff88';
+    velCtx.fillRect(x - 2, H - barH - 4, 5, barH);
+    velCtx.fillStyle = isSelected ? '#ffaa66' : '#00d4ff';
+    velCtx.fillRect(x - 2, H - barH - 6, 5, 2);
+  });
+}
+
+function drawArrangement() {
+  const W = arrCanvas.width, H = arrCanvas.height;
+  arrCtx.clearRect(0, 0, W, H);
+  arrCtx.fillStyle = '#0e0e18';
+  arrCtx.fillRect(0, 0, W, H);
+
+  const trackH = Math.min(40, H / Math.max(tracks.length, 1));
+  tracks.forEach((t, i) => {
+    const y = i * trackH;
+    arrCtx.fillStyle = i === activeTrackIdx ? '#1a1a28' : '#13131e';
+    arrCtx.fillRect(0, y, W, trackH);
+
+    // Draw note blobs
+    t.notes.forEach(n => {
+      const x = tickToX(n.tick) * 0.1;
+      const w = Math.max(1, tickToX(n.duration) * 0.1);
+      const ny = y + ((MAX_NOTE - n.note) / NUM_NOTES) * (trackH - 2);
+      arrCtx.fillStyle = t.color || '#00d4ff';
+      arrCtx.fillRect(x, ny, w, 1.5);
+    });
+
+    // Track separator
+    arrCtx.fillStyle = '#1e1e2a';
+    arrCtx.fillRect(0, y + trackH - 1, W, 1);
+  });
+}
+
+function drawPlayhead() {
+  drawRuler();
+  drawNotes();
+  drawVelocity();
+}
+
+function redrawAll() {
+  drawPiano();
+  drawGrid();
+  drawRuler();
+  drawNotes();
+  drawVelocity();
+  drawArrangement();
+  updateStatusBar();
+}
+
+// =====================================================================
+// PIANO SCROLL SYNC
+// =====================================================================
+
+function syncPianoScroll() {
+  const gw = document.getElementById('grid-wrapper');
+  const sy = gw.scrollTop;
+  pianoCanvas.style.marginTop = -sy + 'px';
+}
+
+// =====================================================================
+// NOTE OPERATIONS
+// =====================================================================
+
+let noteIdCounter = 1;
+
+function createNote(tick, note, duration, velocity = 100) {
+  return { id: noteIdCounter++, tick, note, duration, velocity };
+}
+
+function addNote(tick, note, duration, velocity = 100) {
+  const track = tracks[activeTrackIdx];
+  if (!track) return;
+  const n = createNote(tick, note, duration, velocity);
+  track.notes.push(n);
+  track.notes.sort((a, b) => a.tick - b.tick);
+  updateTotalTicks();
+  return n;
+}
+
+function removeNote(noteId) {
+  tracks.forEach(t => {
+    t.notes = t.notes.filter(n => n.id !== noteId);
+  });
+  selectedNotes.delete(noteId);
+}
+
+function removeSelectedNotes() {
+  if (selectedNotes.size === 0) return;
+  selectedNotes.forEach(id => removeNote(id));
+  selectedNotes.clear();
+  redrawAll();
+}
+
+function updateTotalTicks() {
+  let maxTick = TICKS_PER_BEAT * timeSig.num * 8;
+  tracks.forEach(t => {
+    t.notes.forEach(n => {
+      maxTick = Math.max(maxTick, n.tick + n.duration + TICKS_PER_BEAT * 4);
+    });
+  });
+  totalTicks = maxTick;
+  const W = Math.max(tickToX(totalTicks) + 200, rollWidth);
+  gridCanvas.width = W;
+  noteCanvas.width = W;
+  drawGrid();
+}
+
+function updateStatusBar() {
+  let totalNotes = 0;
+  tracks.forEach(t => totalNotes += t.notes.length);
+  document.getElementById('note-count').textContent = totalNotes;
+  document.getElementById('sel-count').textContent = selectedNotes.size;
+}
+
+// =====================================================================
+// MOUSE INTERACTION
+// =====================================================================
+
+function getGridPos(e) {
+  const rect = noteCanvas.getBoundingClientRect();
+  const gw = document.getElementById('grid-wrapper');
+  const x = e.clientX - rect.left + gw.scrollLeft;
+  const y = e.clientY - rect.top  + gw.scrollTop;
+  return { x, y };
+}
+
+function getNoteAt(x, y) {
+  const tick = xToTick(x);
+  const note = yToNote(y);
+  const track = tracks[activeTrackIdx];
+  if (!track) return null;
+  return track.notes.find(n =>
+    n.note === note && tick >= n.tick && tick <= n.tick + n.duration
+  ) || null;
+}
+
+noteCanvas.addEventListener('mousedown', onNoteMouseDown);
+noteCanvas.addEventListener('mousemove', onNoteMouseMove);
+noteCanvas.addEventListener('mouseup', onNoteMouseUp);
+noteCanvas.addEventListener('mouseleave', onNoteMouseUp);
+noteCanvas.addEventListener('contextmenu', (e) => { e.preventDefault(); });
+
+let mouseDown = false;
+let mouseButton = 0;
+
+function onNoteMouseDown(e) {
+  e.preventDefault();
+  mouseDown = true;
+  mouseButton = e.button;
+  ensureAudioCtx();
+
+  const { x, y } = getGridPos(e);
+  const tick = snapTick(xToTick(x));
+  const note = yToNote(y);
+
+  if (note < 0 || note > 127) return;
+
+  if (e.button === 2) {
+    // Right click = erase
+    const n = getNoteAt(x, y);
+    if (n) { removeNote(n.id); redrawAll(); }
+    return;
+  }
+
+  if (currentTool === 'erase') {
+    const n = getNoteAt(x, y);
+    if (n) { removeNote(n.id); redrawAll(); }
+    return;
+  }
+
+  if (currentTool === 'select' || e.shiftKey) {
+    // Start selection rect
+    selectionRect = { x1: x, y1: y, x2: x, y2: y };
+    if (!e.shiftKey) selectedNotes.clear();
+    return;
+  }
+
+  if (currentTool === 'draw') {
+    // Check if clicking existing note (to move)
+    const existing = getNoteAt(x, y);
+    if (existing) {
+      if (!selectedNotes.has(existing.id)) {
+        selectedNotes.clear();
+        selectedNotes.add(existing.id);
+      }
+      isDraggingNote = true;
+      dragState = {
+        startX: x, startY: y,
+        origNotes: [...selectedNotes].map(id => {
+          const n = tracks[activeTrackIdx]?.notes.find(n => n.id === id);
+          return n ? { id: n.id, tick: n.tick, note: n.note } : null;
+        }).filter(Boolean)
+      };
+      redrawAll();
+      return;
+    }
+
+    // Start drawing new note
+    const noteDuration = TICKS_PER_BEAT / quantize;
+    drawingNote = { tick, note, duration: noteDuration };
+    playSFNote(note, 80, tracks[activeTrackIdx]?.program || 0, tracks[activeTrackIdx]?.channel || 0);
+    dragState = { startTick: tick, note };
+    redrawNotes();
+  }
+}
+
+function onNoteMouseMove(e) {
+  if (!mouseDown) {
+    // Hover: update cursor position
+    const { x, y } = getGridPos(e);
+    const note = yToNote(y);
+    const tick = xToTick(x);
+    const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    const noteName = noteNames[note % 12] + (Math.floor(note/12)-1);
+    document.getElementById('cursor-pos').textContent = `${noteName} ${Math.floor(xToTick(x))}t`;
+    return;
+  }
+
+  const { x, y } = getGridPos(e);
+
+  if (selectionRect) {
+    selectionRect.x2 = x;
+    selectionRect.y2 = y;
+    // Update selected notes
+    const track = tracks[activeTrackIdx];
+    if (track) {
+      const rx1 = Math.min(selectionRect.x1, selectionRect.x2);
+      const rx2 = Math.max(selectionRect.x1, selectionRect.x2);
+      const ry1 = Math.min(selectionRect.y1, selectionRect.y2);
+      const ry2 = Math.max(selectionRect.y1, selectionRect.y2);
+      track.notes.forEach(n => {
+        const nx = tickToX(n.tick), ny = noteToY(n.note);
+        if (nx >= rx1 && nx + tickToX(n.duration) <= rx2 + tickToX(n.duration) &&
+            ny >= ry1 - NOTE_HEIGHT && ny <= ry2) {
+          selectedNotes.add(n.id);
+        }
+      });
+    }
+    redrawNotes();
+    return;
+  }
+
+  if (isDraggingNote && dragState) {
+    const dx = x - dragState.startX;
+    const dy = y - dragState.startY;
+    const dtick = snapTick(xToTick(dx));
+    const dnote = -Math.round(dy / NOTE_HEIGHT);
+    const track = tracks[activeTrackIdx];
+    if (track) {
+      dragState.origNotes.forEach(orig => {
+        const n = track.notes.find(n => n.id === orig.id);
+        if (n) {
+          n.tick = Math.max(0, orig.tick + dtick);
+          n.note = Math.max(0, Math.min(127, orig.note + dnote));
+        }
+      });
+    }
+    redrawNotes();
+    return;
+  }
+
+  if (drawingNote && dragState) {
+    const tick = xToTick(x);
+    const endTick = snapTick(tick);
+    drawingNote.duration = Math.max(TICKS_PER_BEAT / quantize, endTick - drawingNote.tick);
+    redrawNotes();
+  }
+}
+
+function onNoteMouseUp(e) {
+  if (!mouseDown) return;
+  mouseDown = false;
+
+  if (selectionRect) {
+    selectionRect = null;
+    redrawNotes();
+    return;
+  }
+
+  if (isDraggingNote) {
+    isDraggingNote = false;
+    dragState = null;
+    updateTotalTicks();
+    redrawAll();
+    return;
+  }
+
+  if (drawingNote) {
+    addNote(drawingNote.tick, drawingNote.note, drawingNote.duration, 100);
+    drawingNote = null;
+    dragState = null;
+    redrawAll();
+  }
+}
+
+function redrawNotes() {
+  drawNotes();
+  drawVelocity();
+}
+
+// Piano keys: click to play
+pianoCanvas.addEventListener('click', (e) => {
+  const rect = pianoCanvas.getBoundingClientRect();
+  const gw = document.getElementById('grid-wrapper');
+  const y = e.clientY - rect.top + gw.scrollTop;
+  const note = yToNote(y);
+  if (note >= 0 && note <= 127) {
+    playSFNote(note, 80, tracks[activeTrackIdx]?.program || 0, tracks[activeTrackIdx]?.channel || 0);
+  }
+});
+
+// Ruler: click to set playhead
+rulerCanvas.addEventListener('click', (e) => {
+  const gw = document.getElementById('grid-wrapper');
+  const x = e.clientX - rulerCanvas.getBoundingClientRect().left + gw.scrollLeft;
+  playheadTick = Math.max(0, snapTick(xToTick(x)));
+  if (isPlaying) {
+    stopPlayback();
+    startPlayback();
+  }
+  drawPlayhead();
+});
+
+// Velocity: click to change
+velCanvas.addEventListener('click', (e) => {
+  const gw = document.getElementById('grid-wrapper');
+  const rect = velCanvas.getBoundingClientRect();
+  const x = e.clientX - rect.left + gw.scrollLeft;
+  const y = e.clientY - rect.top;
+  const tick = xToTick(x);
+
+  const track = tracks[activeTrackIdx];
+  if (!track) return;
+
+  // Find nearest note
+  let best = null, bestDist = 20;
+  track.notes.forEach(n => {
+    const d = Math.abs(tickToX(n.tick) - x);
+    if (d < bestDist) { bestDist = d; best = n; }
+  });
+
+  if (best) {
+    best.velocity = Math.max(1, Math.min(127, Math.round((1 - y / velCanvas.height) * 127)));
+    drawVelocity();
+  }
+});
+
+// Scroll sync
+document.getElementById('grid-wrapper').addEventListener('scroll', () => {
+  syncPianoScroll();
+  drawRuler();
+  drawVelocity();
+});
+
+// =====================================================================
+// PLAYBACK
+// =====================================================================
+
+function ticksToSeconds(ticks) {
+  return ticks / TICKS_PER_BEAT * (60 / bpm);
+}
+
+function startPlayback() {
+  if (isPlaying) return;
+  ensureAudioCtx();
+  isPlaying = true;
+  playStartTime = audioCtx.currentTime;
+  playStartTick = playheadTick;
+
+  const btn = document.getElementById('btn-play');
+  btn.classList.add('active');
+
+  // Schedule all notes
+  const allNotes = [];
+  tracks.forEach((t, ti) => {
+    if (t.muted) return;
+    const anySolo = tracks.some(x => x.soloed);
+    if (anySolo && !t.soloed) return;
+    t.notes.forEach(n => {
+      if (n.tick >= playStartTick) {
+        allNotes.push({ ...n, program: t.program, channel: t.channel, trackIdx: ti });
+      }
+    });
+  });
+
+  allNotes.sort((a, b) => a.tick - b.tick);
+
+  playbackNoteTimeouts = [];
+  allNotes.forEach(n => {
+    const delay = ticksToSeconds(n.tick - playStartTick) * 1000;
+    const dur = ticksToSeconds(n.duration) * 1000;
+    const t1 = setTimeout(async () => {
+      const res = await playSFNote(n.note, n.velocity, n.program || 0, n.channel || 0);
+    }, delay);
+    const t2 = setTimeout(() => {
+      stopSFNote(n.note, n.channel || 0);
+    }, delay + dur);
+    playbackNoteTimeouts.push(t1, t2);
+  });
+
+  // Animate playhead
+  function animate() {
+    if (!isPlaying) return;
+    const elapsed = audioCtx.currentTime - playStartTime;
+    playheadTick = playStartTick + elapsed * TICKS_PER_BEAT * (bpm / 60);
+
+    // Auto-scroll
+    const gw = document.getElementById('grid-wrapper');
+    const phX = tickToX(playheadTick);
+    const viewEnd = gw.scrollLeft + gw.clientWidth;
+    if (phX > viewEnd - 80) {
+      gw.scrollLeft = phX - 80;
+    }
+
+    updateTimeDisplay();
+    drawPlayhead();
+    animFrame = requestAnimationFrame(animate);
+  }
+  animFrame = requestAnimationFrame(animate);
+}
+
+function stopPlayback() {
+  isPlaying = false;
+  if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
+  playbackNoteTimeouts.forEach(t => clearTimeout(t));
+  playbackNoteTimeouts = [];
+
+  // Stop all active notes
+  Object.keys(activeNotes).forEach(k => {
+    const { source, gainNode } = activeNotes[k];
+    try {
+      gainNode.gain.setTargetAtTime(0, audioCtx?.currentTime || 0, 0.05);
+      source.stop((audioCtx?.currentTime || 0) + 0.1);
+    } catch(e) {}
+  });
+  activeNotes = {};
+
+  document.getElementById('btn-play').classList.remove('active');
+  updateTimeDisplay();
+  drawPlayhead();
+}
+
+function updateTimeDisplay() {
+  const beatsPerBar = timeSig.num;
+  const bar = Math.floor(playheadTick / (TICKS_PER_BEAT * beatsPerBar)) + 1;
+  const beat = Math.floor((playheadTick % (TICKS_PER_BEAT * beatsPerBar)) / TICKS_PER_BEAT) + 1;
+  const ticks = Math.floor(playheadTick % TICKS_PER_BEAT);
+  document.getElementById('time-display').textContent = `${bar}:${beat}:${String(ticks).padStart(3,'0')}`;
+}
+
+// =====================================================================
+// MIDI IMPORT
+// =====================================================================
+
+class MIDIParser {
+  constructor(buffer) {
+    this.view = new DataView(buffer);
+    this.pos = 0;
+  }
+
+  readUint32() { const v = this.view.getUint32(this.pos); this.pos += 4; return v; }
+  readUint16() { const v = this.view.getUint16(this.pos); this.pos += 2; return v; }
+  readByte()   { return this.view.getUint8(this.pos++); }
+
+  readVarLen() {
+    let value = 0, byte;
+    do {
+      byte = this.readByte();
+      value = (value << 7) | (byte & 0x7F);
+    } while (byte & 0x80);
+    return value;
+  }
+
+  readString(n) {
+    let s = '';
+    for (let i = 0; i < n; i++) s += String.fromCharCode(this.readByte());
+    return s;
+  }
+
+  parse() {
+    const magic = this.readString(4);
+    if (magic !== 'MThd') throw new Error('Not a MIDI file');
+    this.readUint32(); // header length
+    const format = this.readUint16();
+    const numTracks = this.readUint16();
+    const division = this.readUint16();
+    const ticksPerBeat = division & 0x7FFF;
+
+    const midiTracks = [];
+    for (let t = 0; t < numTracks; t++) {
+      const magic2 = this.readString(4);
+      if (magic2 !== 'MTrk') throw new Error('Expected MTrk');
+      const len = this.readUint32();
+      const trackEnd = this.pos + len;
+      midiTracks.push(this.parseTrack(trackEnd, ticksPerBeat));
+    }
+
+    return { format, numTracks, ticksPerBeat, tracks: midiTracks };
+  }
+
+  parseTrack(endPos, ticksPerBeat) {
+    const events = [];
+    let time = 0;
+    let lastStatus = 0;
+
+    while (this.pos < endPos) {
+      const delta = this.readVarLen();
+      time += delta;
+
+      let status = this.view.getUint8(this.pos);
+
+      if (status & 0x80) {
+        lastStatus = status;
+        this.pos++;
+      } else {
+        status = lastStatus; // running status
+      }
+
+      const type = status & 0xF0;
+      const channel = status & 0x0F;
+
+      if (type === 0x80 || type === 0x90) {
+        const note = this.readByte();
+        const vel  = this.readByte();
+        events.push({ time, type: (type === 0x90 && vel > 0) ? 'noteOn' : 'noteOff', channel, note, velocity: vel });
+      } else if (type === 0xA0) { this.readByte(); this.readByte(); }
+      else if (type === 0xB0) { events.push({ time, type: 'cc', channel, num: this.readByte(), val: this.readByte() }); }
+      else if (type === 0xC0) { events.push({ time, type: 'program', channel, program: this.readByte() }); }
+      else if (type === 0xD0) { this.readByte(); }
+      else if (type === 0xE0) { this.readByte(); this.readByte(); }
+      else if (status === 0xFF) {
+        const metaType = this.readByte();
+        const metaLen  = this.readVarLen();
+        if (metaType === 0x51) {
+          const t0 = this.readByte(), t1 = this.readByte(), t2 = this.readByte();
+          const microBPM = (t0 << 16) | (t1 << 8) | t2;
+          events.push({ time, type: 'tempo', bpm: Math.round(60e6 / microBPM) });
+        } else {
+          this.pos += metaLen;
+        }
+      } else if (status === 0xF0 || status === 0xF7) {
+        const sysexLen = this.readVarLen();
+        this.pos += sysexLen;
+      } else {
+        this.pos++;
+      }
+    }
+    this.pos = endPos;
+    return events;
+  }
+}
+
+function importMIDI(buffer) {
+  try {
+    const parser = new MIDIParser(buffer);
+    const midi = parser.parse();
+    const scale = TICKS_PER_BEAT / midi.ticksPerBeat;
+
+    tracks = [];
+
+    midi.tracks.forEach((events, ti) => {
+      const noteOns = {};
+      const notes = [];
+      let program = 0;
+      let trackBPM = null;
+
+      events.forEach(e => {
+        if (e.type === 'tempo' && trackBPM === null) trackBPM = e.bpm;
+        if (e.type === 'program') program = e.program;
+        if (e.type === 'noteOn') {
+          noteOns[`${e.channel}_${e.note}`] = { tick: Math.round(e.time * scale), velocity: e.velocity };
+        }
+        if (e.type === 'noteOff') {
+          const key = `${e.channel}_${e.note}`;
+          if (noteOns[key]) {
+            const on = noteOns[key];
+            notes.push(createNote(on.tick, e.note, Math.max(TICKS_PER_BEAT/16, Math.round(e.time * scale) - on.tick), on.velocity));
+            delete noteOns[key];
+          }
+        }
+      });
+
+      if (trackBPM) bpm = trackBPM;
+      if (notes.length > 0) {
+        const color = TRACK_COLORS[tracks.length % TRACK_COLORS.length];
+        tracks.push({ id: Date.now() + ti, name: `Track ${tracks.length + 1}`, color, channel: ti % 16, program, muted: false, soloed: false, notes, volume: 100 });
+      }
+    });
+
+    if (tracks.length === 0) addTrack('Track 1');
+    activeTrackIdx = 0;
+    document.getElementById('tempo-input').value = bpm;
+    playheadTick = 0;
+    selectedNotes.clear();
+    updateTotalTicks();
+    renderTrackList();
+    redrawAll();
+    alert(`✅ MIDIインポート完了！ トラック数: ${tracks.length}, BPM: ${bpm}`);
+  } catch(e) {
+    alert('❌ MIDIインポートエラー: ' + e.message);
+    console.error(e);
+  }
+}
+
+// =====================================================================
+// MIDI EXPORT
+// =====================================================================
+
+function writeVarLen(value) {
+  const bytes = [];
+  bytes.unshift(value & 0x7F);
+  value >>= 7;
+  while (value > 0) {
+    bytes.unshift((value & 0x7F) | 0x80);
+    value >>= 7;
+  }
+  return bytes;
+}
+
+function exportMIDI() {
+  const scale = TICKS_PER_BEAT; // already in TICKS_PER_BEAT
+
+  const allEvents = [];
+
+  // Tempo event
+  const microsPerBeat = Math.round(60e6 / bpm);
+  allEvents.push({ time: 0, data: [0xFF, 0x51, 0x03,
+    (microsPerBeat >> 16) & 0xFF, (microsPerBeat >> 8) & 0xFF, microsPerBeat & 0xFF] });
+
+  // Time sig
+  allEvents.push({ time: 0, data: [0xFF, 0x58, 0x04, timeSig.num,
+    Math.log2(timeSig.den), 24, 8] });
+
+  tracks.forEach(t => {
+    // Program change
+    if (t.program !== undefined) {
+      allEvents.push({ time: 0, data: [0xC0 | (t.channel & 0x0F), t.program & 0x7F] });
+    }
+    t.notes.forEach(n => {
+      allEvents.push({ time: n.tick, data: [0x90 | (t.channel & 0x0F), n.note & 0x7F, n.velocity & 0x7F] });
+      allEvents.push({ time: n.tick + n.duration, data: [0x80 | (t.channel & 0x0F), n.note & 0x7F, 0x00] });
+    });
+  });
+
+  // End of track
+  allEvents.push({ time: totalTicks + TICKS_PER_BEAT * 4, data: [0xFF, 0x2F, 0x00] });
+  allEvents.sort((a, b) => a.time - b.time);
+
+  // Build track bytes
+  const trackBytes = [];
+  let prevTime = 0;
+  allEvents.forEach(e => {
+    writeVarLen(e.time - prevTime).forEach(b => trackBytes.push(b));
+    prevTime = e.time;
+    e.data.forEach(b => trackBytes.push(b));
+  });
+
+  // Build MIDI file
+  const headerSize = 14;
+  const trackSize = trackBytes.length + 8;
+  const buf = new ArrayBuffer(headerSize + trackSize);
+  const view = new DataView(buf);
+  let p = 0;
+
+  // Header chunk
+  [0x4D,0x54,0x68,0x64].forEach(b => view.setUint8(p++, b)); // MThd
+  view.setUint32(p, 6); p += 4;
+  view.setUint16(p, 0); p += 2; // format 0
+  view.setUint16(p, 1); p += 2; // 1 track
+  view.setUint16(p, TICKS_PER_BEAT); p += 2;
+
+  // Track chunk
+  [0x4D,0x54,0x72,0x6B].forEach(b => view.setUint8(p++, b)); // MTrk
+  view.setUint32(p, trackBytes.length); p += 4;
+  trackBytes.forEach(b => view.setUint8(p++, b));
+
+  const blob = new Blob([buf], { type: 'audio/midi' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'midi_export.mid';
+  a.click();
+}
+
+// =====================================================================
+// KEYBOARD SHORTCUTS
+// =====================================================================
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+  switch(e.key) {
+    case ' ':
+      e.preventDefault();
+      if (isPlaying) stopPlayback();
+      else startPlayback();
+      break;
+    case 'd': case 'D': setTool('draw'); break;
+    case 's': case 'S': setTool('select'); break;
+    case 'e': case 'E': setTool('erase'); break;
+    case 'Delete': case 'Backspace':
+      e.preventDefault();
+      removeSelectedNotes();
+      break;
+    case 'a':
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const track = tracks[activeTrackIdx];
+        if (track) { selectedNotes.clear(); track.notes.forEach(n => selectedNotes.add(n.id)); redrawAll(); }
+      }
+      break;
+    case 'Escape':
+      selectedNotes.clear();
+      stopPlayback();
+      redrawAll();
+      break;
+    case 'Home':
+      playheadTick = 0;
+      drawPlayhead();
+      break;
+  }
+});
+
+// =====================================================================
+// TOOL SELECTION
+// =====================================================================
+
+function setTool(tool) {
+  currentTool = tool;
+  document.getElementById('tool-draw').classList.toggle('active', tool === 'draw');
+  document.getElementById('tool-select').classList.toggle('active', tool === 'select');
+  document.getElementById('tool-erase').classList.toggle('active', tool === 'erase');
+
+  const cursors = { draw: 'crosshair', select: 'default', erase: 'cell' };
+  noteCanvas.style.cursor = cursors[tool] || 'crosshair';
+}
+
+// =====================================================================
+// ZOOM
+// =====================================================================
+
+function setZoom(z) {
+  zoom = Math.max(0.1, Math.min(8, z));
+  document.getElementById('zoom-label').textContent = Math.round(zoom * 100) + '%';
+  updateTotalTicks();
+  redrawAll();
+}
+
+// =====================================================================
+// UI EVENTS
+// =====================================================================
+
+document.getElementById('btn-play').addEventListener('click', () => {
+  if (isPlaying) stopPlayback(); else startPlayback();
+});
+document.getElementById('btn-stop').addEventListener('click', () => {
+  stopPlayback();
+  playheadTick = 0;
+  drawPlayhead();
+  updateTimeDisplay();
+});
+document.getElementById('btn-rec').addEventListener('click', () => {
+  document.getElementById('btn-rec').classList.toggle('active');
+});
+
+document.getElementById('tempo-input').addEventListener('change', (e) => {
+  bpm = parseInt(e.target.value) || 120;
+  if (isPlaying) { stopPlayback(); startPlayback(); }
+});
+
+document.getElementById('timesig-select').addEventListener('change', (e) => {
+  const [n, d] = e.target.value.split('/').map(Number);
+  timeSig = { num: n, den: d };
+  redrawAll();
+});
+
+document.getElementById('quantize-select').addEventListener('change', (e) => {
+  quantize = parseInt(e.target.value);
+  redrawAll();
+});
+
+document.getElementById('zoom-in').addEventListener('click', () => setZoom(zoom * 1.25));
+document.getElementById('zoom-out').addEventListener('click', () => setZoom(zoom * 0.8));
+
+document.getElementById('master-vol').addEventListener('input', (e) => {
+  masterVolume = e.target.value / 100;
+});
+
+document.getElementById('tool-draw').addEventListener('click', () => setTool('draw'));
+document.getElementById('tool-select').addEventListener('click', () => setTool('select'));
+document.getElementById('tool-erase').addEventListener('click', () => setTool('erase'));
+
+document.getElementById('btn-add-track').addEventListener('click', () => {
+  const name = prompt('トラック名:', `Track ${tracks.length + 1}`);
+  if (name !== null) addTrack(name || `Track ${tracks.length + 1}`);
+});
+
+document.getElementById('btn-new').addEventListener('click', () => {
+  if (confirm('新規プロジェクトを作成しますか？（現在のデータは失われます）')) {
+    tracks = [];
+    initDefaultTracks();
+    playheadTick = 0;
+    selectedNotes.clear();
+    bpm = 120;
+    document.getElementById('tempo-input').value = 120;
+    stopPlayback();
+    redrawAll();
+  }
+});
+
+// SF2 loading
+document.getElementById('btn-load-sf').addEventListener('click', () => {
+  document.getElementById('sf-file-input').click();
+});
+
+document.getElementById('sf-file-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  sfName = file.name;
+  updateSFStatus('loading');
+  ensureAudioCtx();
+  const buf = await file.arrayBuffer();
+  const ok = await loadSF2(buf);
+  if (!ok) alert('SF2読込に失敗しました');
+  e.target.value = '';
+});
+
+// MIDI Import
+document.getElementById('btn-import').addEventListener('click', () => {
+  document.getElementById('midi-file-input').click();
+});
+
+document.getElementById('midi-file-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const buf = await file.arrayBuffer();
+  importMIDI(buf);
+  e.target.value = '';
+});
+
+// MIDI Export
+document.getElementById('btn-export').addEventListener('click', () => {
+  exportMIDI();
+});
+
+// Instrument select
+document.getElementById('instrument-select').addEventListener('change', (e) => {
+  const track = tracks[activeTrackIdx];
+  if (track) {
+    track.program = parseInt(e.target.value) || 0;
+  }
+});
+
+// =====================================================================
+// RESIZE
+// =====================================================================
+
+window.addEventListener('resize', resize);
+
+// =====================================================================
+// INIT
+// =====================================================================
+
+function init() {
+  initDefaultTracks();
+  renderTrackList();
+  resize();
+  setTool('draw');
+  updateTimeDisplay();
+
+  // Sync grid/velocity scroll
+  document.getElementById('grid-wrapper').addEventListener('scroll', () => {
+    const sx = document.getElementById('grid-wrapper').scrollLeft;
+    document.getElementById('vel-wrapper').scrollLeft = sx;
+    syncPianoScroll();
+    drawRuler();
+    drawVelocity();
+    drawArrangement();
+  });
+
+  document.getElementById('vel-wrapper').addEventListener('scroll', (e) => {
+    document.getElementById('grid-wrapper').scrollLeft = e.target.scrollLeft;
+  });
+
+  // Scroll to middle C (note 60)
+  setTimeout(() => {
+    const gw = document.getElementById('grid-wrapper');
+    gw.scrollTop = noteToY(72) - gw.clientHeight / 2;
+    syncPianoScroll();
+    redrawAll();
+  }, 100);
+}
+
+init();
+</script>
+</body>
+</html>
